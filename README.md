@@ -18,7 +18,6 @@ This project demonstrates the implementation of a Library Management System usin
 ## Project Structure
 
 ### 1. Database Setup
-![ERD](https://github.com/najirh/Library-System-Management---P2/blob/main/library_erd.png)
 
 - **Database Creation**: Created a database named `library_db`.
 - **Table Creation**: Created tables for branches, employees, members, books, issued status, and return status. Each table includes relevant columns and relationships.
@@ -118,16 +117,16 @@ CREATE TABLE return_status
 -- "978-1-60129-456-2', 'To Kill a Mockingbird', 'Classic', 6.00, 'yes', 'Harper Lee', 'J.B. Lippincott & Co.')"
 
 ```sql
-INSERT INTO books(isbn, book_title, category, rental_price, status, author, publisher)
-VALUES('978-1-60129-456-2', 'To Kill a Mockingbird', 'Classic', 6.00, 'yes', 'Harper Lee', 'J.B. Lippincott & Co.');
-SELECT * FROM books;
+INSERT INTO books (isbn, book_title, category, rental_price, status, author, publisher)
+VALUES
+            ('978-1-60129-456-2', 'To Kill a Mockingbird', 'Classic', 6.00, 'yes', 'Harper Lee', 'J.B. Lippincott & Co.');
 ```
 **Task 2: Update an Existing Member's Address**
 
 ```sql
 UPDATE members
-SET member_address = '125 Oak St'
-WHERE member_id = 'C103';
+SET member_address = '125 Main St'
+WHERE member_id = 'C101';
 ```
 
 **Task 3: Delete a Record from the Issued Status Table**
@@ -144,7 +143,6 @@ WHERE   issued_id =   'IS121';
 SELECT * FROM issued_status
 WHERE issued_emp_id = 'E101'
 ```
-
 
 **Task 5: List Members Who Have Issued More Than One Book**
 -- Objective: Use GROUP BY to find members who have issued more than one book.
@@ -170,7 +168,6 @@ JOIN books as b
 ON ist.issued_book_isbn = b.isbn
 GROUP BY b.isbn, b.book_title;
 ```
-
 
 ### 4. Data Analysis & Findings
 
@@ -232,11 +229,21 @@ WHERE rental_price > 7.00;
 
 Task 12: **Retrieve the List of Books Not Yet Returned**
 ```sql
-SELECT * FROM issued_status as ist
-LEFT JOIN
-return_status as rs
-ON rs.issued_id = ist.issued_id
-WHERE rs.return_id IS NULL;
+SELECT 
+	b.book_title,
+	b.category,
+	m.member_name,
+	m.reg_date,
+	ist.issued_date,
+	rs.return_date
+from issued_status ist
+LEFT JOIN return_status rs
+	ON ist.issued_id = rs.issued_id
+JOIN books b
+	ON ist.issued_book_isbn = b.isbn
+JOIN members m
+	ON ist.issued_member_id = m.member_id
+WHERE rs.return_date is NULL;
 ```
 
 ## Advanced SQL Operations
@@ -269,10 +276,8 @@ WHERE
 ORDER BY 1
 ```
 
-
 **Task 14: Update Book Status on Return**  
 Write a query to update the status of books in the books table to "Yes" when they are returned (based on entries in the return_status table).
-
 
 ```sql
 
@@ -333,8 +338,6 @@ CALL add_return_records('RS148', 'IS140', 'Good');
 ```
 
 
-
-
 **Task 15: Branch Performance Report**  
 Create a query that generates a performance report for each branch, showing the number of books issued, the number of books returned, and the total revenue generated from book rentals.
 
@@ -385,7 +388,6 @@ SELECT * FROM active_members;
 
 ```
 
-
 **Task 17: Find Employees with the Most Book Issues Processed**  
 Write a query to find the top 3 employees who have processed the most book issues. Display the employee name, number of books processed, and their branch.
 
@@ -405,8 +407,23 @@ GROUP BY 1, 2
 ```
 
 **Task 18: Identify Members Issuing High-Risk Books**  
-Write a query to identify members who have issued books more than twice with the status "damaged" in the books table. Display the member name, book title, and the number of times they've issued damaged books.    
+Write a query to identify members who have issued books more than twice with the status "damaged" in the books table. Display the member name, book title, and the number of times they've issued damaged books.
 
+```sql
+
+SELECT 
+	m.member_name,
+	bk.book_title,
+	COUNT(ist.issued_id) as number_of_times_issued
+FROM issued_status ist
+JOIN members m
+	ON m.member_id = ist.issued_member_id 
+JOIN books bk
+	ON bk.isbn = ist.issued_book_isbn 
+WHERE bk.status = 'damaged'
+GROUP BY m.member_id, m.member_name, bk.book_title
+HAVING COUNT(ist.issued_id) > 2;
+```
 
 **Task 19: Stored Procedure**
 Objective:
@@ -471,8 +488,6 @@ WHERE isbn = '978-0-375-41398-8'
 
 ```
 
-
-
 **Task 20: Create Table As Select (CTAS)**
 Objective: Create a CTAS (Create Table As Select) query to identify overdue books and calculate fines.
 
@@ -485,6 +500,29 @@ Description: Write a CTAS query to create a new table that lists each member and
     Number of overdue books
     Total fines
 
+```sql
+CREATE TABLE overdue_fines_summary AS
+SELECT  
+	m.member_id,
+	COUNT(*) AS number_of_overdue_books,
+	COUNT(ist.issued_id) AS number_of_books_issued,
+	ROUND(SUM((CURRENT_DATE - issued_date - 30) * 0.50), 2) AS Total_fines
+FROM 
+	issued_status ist
+JOIN members m 
+	ON m.member_id = ist.issued_member_id
+LEFT JOIN return_status rs
+	ON rs.issued_id = ist.issued_id
+WHERE 
+	return_date is NULL
+	AND (CURRENT_DATE - issued_date) > 30
+GROUP BY 
+	m.member_id;
+
+SELECT * FROM overdue_fines_summary;
+```
+
+
 ## Reports
 
 - **Database Schema**: Detailed table structures and relationships.
@@ -494,18 +532,5 @@ Description: Write a CTAS query to create a new table that lists each member and
 ## Conclusion
 
 This project demonstrates the application of SQL skills in creating and managing a library management system. It includes database setup, data manipulation, and advanced querying, providing a solid foundation for data management and analysis.
-
-## How to Use
-
-1. **Clone the Repository**: Clone this repository to your local machine.
-   ```sh
-   git clone https://github.com/najirh/Library-System-Management---P2.git
-   ```
-
-2. **Set Up the Database**: Execute the SQL scripts in the `database_setup.sql` file to create and populate the database.
-3. **Run the Queries**: Use the SQL queries in the `analysis_queries.sql` file to perform the analysis.
-4. **Explore and Modify**: Customize the queries as needed to explore different aspects of the data or answer additional questions.
-
-
 
 Thank you for your interest in this project!
